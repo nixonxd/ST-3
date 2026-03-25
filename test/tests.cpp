@@ -5,22 +5,23 @@
 #include <cstdint>
 #include <thread>
 #include <chrono>
+#include <future>
 #include "TimedDoor.h"
 
 class MockTimerClient : public TimerClient {
-public:
+  public:
     MOCK_METHOD(void, Timeout, (), (override));
 };
 
 class MockDoor : public Door {
-public:
+  public:
     MOCK_METHOD(void, lock, (), (override));
     MOCK_METHOD(void, unlock, (), (override));
     MOCK_METHOD(bool, isDoorOpened, (), (override));
 };
 
 class TimedDoorTest : public ::testing::Test {
-protected:
+  protected:
     void SetUp() override {
         door = new TimedDoor(1);
     }
@@ -33,7 +34,7 @@ protected:
 };
 
 class DoorTimerAdapterTest : public ::testing::Test {
-protected:
+  protected:
     void SetUp() override {
         door = new TimedDoor(1);
         adapter = new DoorTimerAdapter(*door);
@@ -85,8 +86,17 @@ TEST_F(TimedDoorTest, ThrowStateThrowsException) {
 TEST(TimerTest, TregisterCallsTimeout) {
     MockTimerClient mockClient;
     Timer timer;
-    EXPECT_CALL(mockClient, Timeout()).Times(1);
+    std::promise<void> p;
+    auto f = p.get_future();
+
+    EXPECT_CALL(mockClient, Timeout())
+        .Times(1)
+        .WillOnce(testing::InvokeWithoutArgs([&p]() {
+            p.set_value();
+        }));
+
     timer.tregister(0, &mockClient);
+    EXPECT_EQ(f.wait_for(std::chrono::seconds(1)), std::future_status::ready);
 }
 
 TEST_F(TimedDoorTest, UnlockStartsTimer) {
@@ -98,6 +108,7 @@ TEST_F(TimedDoorTest, UnlockStartsTimer) {
 TEST_F(TimedDoorTest, LockBeforeTimeoutPreventsException) {
     door->unlock();
     door->lock();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     EXPECT_FALSE(door->isDoorOpened());
 }
 
