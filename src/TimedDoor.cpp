@@ -4,7 +4,6 @@
 #include <thread>
 #include <chrono>
 
-// DoorTimerAdapter implementation
 DoorTimerAdapter::DoorTimerAdapter(TimedDoor& d) : door(d) {}
 
 void DoorTimerAdapter::Timeout() {
@@ -13,7 +12,6 @@ void DoorTimerAdapter::Timeout() {
     }
 }
 
-// TimedDoor implementation
 TimedDoor::TimedDoor(int timeout) : iTimeout(timeout), isOpened(false), adapter(new DoorTimerAdapter(*this)) {}
 
 TimedDoor::~TimedDoor() {
@@ -41,7 +39,6 @@ void TimedDoor::throwState() {
     throw std::runtime_error("Door was left open too long");
 }
 
-// Timer implementation
 void Timer::sleep(int seconds) {
     std::this_thread::sleep_for(std::chrono::seconds(seconds));
 }
